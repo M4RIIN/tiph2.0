@@ -81,6 +81,7 @@ export function WorkoutCalendar({
     });
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const sessionsForSelectedDate = selectedDate ? getSessionsForDate(selectedDate) : [];
 
   // Calculate total workout time for the day
