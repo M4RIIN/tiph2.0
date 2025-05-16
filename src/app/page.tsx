@@ -1,103 +1,312 @@
-import Image from "next/image";
+"use client";
+
+import { useState, useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { WorkoutCalendar } from "@/components/workout/WorkoutCalendar";
+import { WorkoutStats } from "@/components/workout/WorkoutStats";
+import { ProgramForm } from "@/components/program/ProgramForm";
+import { RewardsTracker } from "@/components/rewards/RewardsTracker";
+
+// Import domain entities
+import { WorkoutSession, WorkoutType } from "@/domain/entities/WorkoutSession";
+import { Program } from "@/domain/entities/Program";
+import { Reward, PREDEFINED_REWARDS } from "@/domain/entities/Reward";
+import { User } from "@/domain/entities/User";
+
+// Import service hooks
+import { 
+  useProgramsService, 
+  useWorkoutSessionsService, 
+  useRewardsService, 
+  usePointsService 
+} from "@/infrastructure/di/ServiceProvider";
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  // Get services
+  const programsService = useProgramsService();
+  const workoutSessionsService = useWorkoutSessionsService();
+  const rewardsService = useRewardsService();
+  const pointsService = usePointsService();
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  // State
+  const [user, setUser] = useState<User>(new User(
+   "user1",
+    "Tiphaine",
+   "Tiphaine",
+     0,
+   new Date(),
+    new Date()
+  ));
+
+  const [workoutSessions, setWorkoutSessions] = useState<WorkoutSession[]>([]);
+  const [programs, setPrograms] = useState<Program[]>([]);
+  const [rewards] = useState<Reward[]>(PREDEFINED_REWARDS);
+  const [unlockedRewards, setUnlockedRewards] = useState<string[]>([]);
+
+  const [showProgramForm, setShowProgramForm] = useState(false);
+  const [selectedProgram, setSelectedProgram] = useState<Program | undefined>(undefined);
+
+  // Load data from repositories
+  useEffect(() => {
+    // Load programs
+    const loadPrograms = async () => {
+      try {
+        const userPrograms = await programsService.getProgramsByUserId(user.id);
+        setPrograms(userPrograms);
+      } catch (error) {
+        console.error("Error loading programs:", error);
+      }
+    };
+
+    // Load workout sessions
+    const loadWorkoutSessions = async () => {
+      try {
+        const sessions = await workoutSessionsService.getWorkoutSessionsByUserId(user.id);
+        setWorkoutSessions(sessions);
+      } catch (error) {
+        console.error("Error loading workout sessions:", error);
+      }
+    };
+
+    // Load unlocked rewards
+    const loadUnlockedRewards = async () => {
+      try {
+        const userRewards = await rewardsService.getUnlockedRewards(user.id);
+        setUnlockedRewards(userRewards.map(r => r.id));
+      } catch (error) {
+        console.error("Error loading unlocked rewards:", error);
+      }
+    };
+
+    loadPrograms();
+    loadWorkoutSessions();
+    loadUnlockedRewards();
+
+    // Check which rewards should be automatically unlocked based on initial points
+    checkAndUnlockRewards(user.points);
+  }, [user.id, programsService, workoutSessionsService, rewardsService]);
+
+  // Check and automatically unlock rewards based on points
+  const checkAndUnlockRewards = async (points: number) => {
+    try {
+      const newUnlockedRewards = [...unlockedRewards];
+      let rewardsChanged = false;
+
+      for (const reward of rewards) {
+        if (points >= reward.pointsCost && !newUnlockedRewards.includes(reward.id)) {
+          // Unlock the reward using the service
+          await rewardsService.unlockReward(user.id, reward.id);
+          newUnlockedRewards.push(reward.id);
+          rewardsChanged = true;
+        }
+      }
+
+      if (rewardsChanged) {
+        setUnlockedRewards(newUnlockedRewards);
+      }
+    } catch (error) {
+      console.error("Error checking and unlocking rewards:", error);
+    }
+  };
+
+  // Handle adding a workout session
+  const handleAddWorkoutSession = async (session: Partial<WorkoutSession>) => {
+    try {
+      // Create the session using the service
+      const newSession = await workoutSessionsService.createWorkoutSession({
+        userId: user.id,
+        type: session.type as WorkoutType,
+        date: session.date as Date,
+        duration: session.duration as number,
+        programId: session.programId,
+        notes: session.notes
+      });
+
+      // Update local state
+      setWorkoutSessions([...workoutSessions, newSession]);
+
+      // Check if user has completed 3 sessions in the week
+      const weekStart = getStartOfWeek(newSession.date);
+      const sessionsInWeek = [...workoutSessions, newSession].filter(s => 
+        s.userId === user.id && isInSameWeek(s.date, weekStart)
+      );
+
+      if (sessionsInWeek.length % 3 === 0) {
+        // Award points for sessions in the week using the points service
+        const pointsEarned = await pointsService.trackWeeklyPoints(user.id, weekStart);
+
+        if (pointsEarned > 0) {
+          // Update user with new points
+          const updatedUser = {...user, points: user.points + pointsEarned};
+          setUser(updatedUser);
+
+          // Check if any new rewards should be unlocked
+          checkAndUnlockRewards(updatedUser.points);
+        }
+      }
+    } catch (error) {
+      console.error("Error adding workout session:", error);
+    }
+  };
+
+  // Handle saving a program
+  const handleSaveProgram = async (programData: Partial<Program>) => {
+    try {
+      if (selectedProgram) {
+        // Update existing program using the service with all data including exercises
+        await programsService.updateProgram(selectedProgram.id, {
+          name: programData.name,
+          type: programData.type,
+          description: programData.description,
+          exercises: programData.exercises
+        });
+
+        // Refresh programs list
+        const updatedPrograms = await programsService.getProgramsByUserId(user.id);
+        setPrograms(updatedPrograms);
+      } else {
+        // Create new program using the service
+        await programsService.createProgram({
+          userId: user.id,
+          name: programData.name as string,
+          type: programData.type as WorkoutType,
+          description: programData.description,
+          exercises: programData.exercises
+        });
+
+        // Refresh programs list
+        const updatedPrograms = await programsService.getProgramsByUserId(user.id);
+        setPrograms(updatedPrograms);
+      }
+
+      setShowProgramForm(false);
+      setSelectedProgram(undefined);
+    } catch (error) {
+      console.error("Error saving program:", error);
+    }
+  };
+
+
+
+  // Helper functions
+  const getStartOfWeek = (date: Date) => {
+    const newDate = new Date(date);
+    const day = newDate.getDay();
+    const diff = newDate.getDate() - day + (day === 0 ? -6 : 1); // Adjust for Sunday
+    newDate.setDate(diff);
+    newDate.setHours(0, 0, 0, 0);
+    return newDate;
+  };
+
+  const isInSameWeek = (date: Date, weekStart: Date) => {
+    const d = new Date(date);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    return d >= weekStart && d <= weekEnd;
+  };
+
+  return (
+    <div className="container mx-auto py-6">
+      <header className="mb-6">
+        <h1 className="text-3xl font-bold">Suivi de Fitness</h1>
+        <div className="flex justify-between items-center mt-2">
+          <p className="text-gray-500">Bienvenue, {user.name}</p>
+          <div className="flex items-center gap-2">
+            <span className="font-bold">{user.points} Points</span>
+          </div>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+      </header>
+
+      <Tabs defaultValue="workout" className="space-y-4">
+        <TabsList className="grid grid-cols-3 w-full">
+          <TabsTrigger value="workout">Calendrier</TabsTrigger>
+          <TabsTrigger value="programs">Programmes</TabsTrigger>
+          <TabsTrigger value="rewards">Suivi</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="workout" className="space-y-4">
+          <WorkoutCalendar 
+            workoutSessions={workoutSessions}
+            programs={programs}
+            onAddSession={handleAddWorkoutSession}
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+        </TabsContent>
+
+        <TabsContent value="programs" className="space-y-4">
+          {showProgramForm ? (
+            <ProgramForm 
+              program={selectedProgram}
+              onSave={handleSaveProgram}
+              onCancel={() => {
+                setShowProgramForm(false);
+                setSelectedProgram(undefined);
+              }}
+            />
+          ) : (
+            <>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Vos Programmes</h2>
+                <Button onClick={() => setShowProgramForm(true)}>
+                  Créer un Nouveau Programme
+                </Button>
+              </div>
+
+              {programs.length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <p className="text-gray-500">Vous n&apos;avez pas encore créé de programmes.</p>
+                    <Button 
+                      onClick={() => setShowProgramForm(true)}
+                      className="mt-4"
+                    >
+                      Créer Votre Premier Programme
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {programs.map(program => (
+                    <Card key={program.id} className="cursor-pointer hover:shadow-md" onClick={() => {
+                      setSelectedProgram(program);
+                      setShowProgramForm(true);
+                    }}>
+                      <CardHeader>
+                        <CardTitle>{program.name}</CardTitle>
+                        <CardDescription>
+                          {program.type.charAt(0).toUpperCase() + program.type.slice(1)}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-gray-500 mb-2">
+                          {program.description || 'Pas de description'}
+                        </p>
+                        <p className="text-sm">{program.exercises.length} exercices</p>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </TabsContent>
+
+
+        <TabsContent value="rewards" className="space-y-8">
+          {/* Workout Statistics */}
+          <WorkoutStats 
+            workoutSessions={workoutSessions}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
+
+          {/* Rewards */}
+          <RewardsTracker 
+            rewards={rewards}
+            unlockedRewards={unlockedRewards}
+            userPoints={user.points}
           />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
