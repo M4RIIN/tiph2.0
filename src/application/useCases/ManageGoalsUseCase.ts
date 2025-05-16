@@ -1,5 +1,4 @@
 import { Goal, GoalImpl } from '../../domain/entities/Goal';
-import { Reward } from '../../domain/entities/Reward';
 import {GoalRepository} from "@/domain/repositories/GoalRepository";
 import {RewardRepository} from "@/domain/repositories/RewardRepository";
 

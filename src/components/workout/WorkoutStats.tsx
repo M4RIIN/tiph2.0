@@ -3,7 +3,6 @@
 import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { WorkoutSession, WorkoutType } from '@/domain/entities/WorkoutSession';
 import { format, eachMonthOfInterval, subMonths } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -27,36 +26,21 @@ const getWorkoutTypeColor = (type: WorkoutType): string => {
   }
 };
 
-// Helper function to get text color based on workout type
-const getWorkoutTypeTextColor = (type: WorkoutType): string => {
-  switch (type) {
-    case 'crossfit': return 'text-red-500';
-    case 'pilates': return 'text-purple-500';
-    case 'gym': return 'text-blue-500';
-    case 'running': return 'text-green-500';
-    case 'swimming': return 'text-cyan-500';
-    case 'yoga': return 'text-yellow-500';
-    case 'other': return 'text-gray-500';
-    default: return 'text-gray-500';
-  }
-};
 
 export function WorkoutStats({ workoutSessions }: WorkoutStatsProps) {
   // State for filter selection (total or specific month)
-  const [selectedFilter, setSelectedFilter] = useState<string>("total");
+  const [selectedFilter] = useState<string>("total");
 
   // Get the last 6 months
-  const last6Months = useMemo(() => {
+  useMemo(() => {
     const today = new Date();
     return eachMonthOfInterval({
       start: subMonths(today, 5),
       end: today
     });
   }, []);
-
-
-  // Calculate sessions by type, filtered by month if selected
-  const sessionsByType = useMemo(() => {
+// Calculate sessions by type, filtered by month if selected
+  useMemo(() => {
     const typeCount: Record<WorkoutType, number> = {
       'crossfit': 0,
       'pilates': 0,
@@ -68,13 +52,13 @@ export function WorkoutStats({ workoutSessions }: WorkoutStatsProps) {
     };
 
     // Filter sessions by selected month if not "total"
-    const filteredSessions = selectedFilter === "total" 
-      ? workoutSessions 
-      : workoutSessions.filter(session => {
+    const filteredSessions = selectedFilter === "total"
+        ? workoutSessions
+        : workoutSessions.filter(session => {
           const sessionDate = new Date(session.date);
           const selectedMonth = new Date(selectedFilter);
-          return sessionDate.getMonth() === selectedMonth.getMonth() && 
-                 sessionDate.getFullYear() === selectedMonth.getFullYear();
+          return sessionDate.getMonth() === selectedMonth.getMonth() &&
+              sessionDate.getFullYear() === selectedMonth.getFullYear();
         });
 
     filteredSessions.forEach(session => {
@@ -82,12 +66,11 @@ export function WorkoutStats({ workoutSessions }: WorkoutStatsProps) {
     });
 
     return Object.entries(typeCount)
-      .map(([type, count]) => ({ type: type as WorkoutType, count }))
-      .filter(item => item.count > 0)
-      .sort((a, b) => b.count - a.count);
+        .map(([type, count]) => ({ type: type as WorkoutType, count }))
+        .filter(item => item.count > 0)
+        .sort((a, b) => b.count - a.count);
   }, [workoutSessions, selectedFilter]);
-
-  // Calculate total sessions (filtered by month if selected)
+// Calculate total sessions (filtered by month if selected)
   const totalSessions = useMemo(() => {
     if (selectedFilter === "total") {
       return workoutSessions.length;
