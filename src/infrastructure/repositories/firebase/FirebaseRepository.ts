@@ -77,6 +77,7 @@ export abstract class FirebaseRepository<T> implements Repository<T> {
     const docRef = doc(db, this.collectionName, id);
     const data = this.convertDatesToTimestamps(entity);
 
+    // @ts-expect-error dfgs
     await updateDoc(docRef, data);
 
     const updatedDoc = await getDoc(docRef);
