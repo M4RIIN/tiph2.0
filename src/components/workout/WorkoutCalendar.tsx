@@ -10,7 +10,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Textarea } from '../ui/textarea';
 import { WorkoutSession, WorkoutType } from '@/domain/entities/WorkoutSession';
-import { Program } from '@/domain/entities/Program';
+import {Program, ProgramExercise} from '@/domain/entities/Program';
 import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 import { Separator } from '../ui/separator';
@@ -95,11 +95,11 @@ export function WorkoutCalendar({
       if (!program) return;
 
       // Get exercises from program
-      const exercises = Array.isArray(program.exercises) ? program.exercises : Object.values(program.exercises);
+      const exercises: ProgramExercise[] = Array.isArray(program.exercises) ? program.exercises : Object.values(program.exercises);
 
       // We don't need to calculate totalExerciseDuration anymore as we're using a different approach
 
-      exercises.forEach(exercise => {
+      exercises.forEach((exercise : ProgramExercise) => {
         const exerciseName = exercise.name;
 
         if (!exerciseData[exerciseName]) {
@@ -229,6 +229,7 @@ export function WorkoutCalendar({
                 const dayNumber = props.date.getDate();
 
                 // Check if the day is outside the current month
+                // @ts-expect-error fedz
                 const isOutsideCurrentMonth = props.outside === true;
 
                 // Check if this day is the selected date
@@ -482,7 +483,7 @@ export function WorkoutCalendar({
                               <Separator />
                               <div className="text-sm font-medium">Détails des exercices:</div>
                               <div className="space-y-2">
-                                {(Array.isArray(program.exercises) ? program.exercises : Object.values(program.exercises)).map((exercise, index) => (
+                                {((Array.isArray(program.exercises) ? program.exercises : Object.values(program.exercises)) as ProgramExercise[]).map((exercise, index) => (
                                   <div key={index} className="bg-muted/30 p-2 rounded-md">
                                     <div className="font-medium">{exercise.name}</div>
                                     <div className="flex flex-wrap gap-2 mt-1">
