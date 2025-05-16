@@ -165,7 +165,7 @@ export function WorkoutBarChart({ workoutSessions }: WorkoutBarChartProps) {
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value, name) => [`${value} séance${value > 1 ? 's' : ''}`, name]}
+                formatter={(value, name) => [`${value} séance${Number(value) > 1 ? 's' : ''}`, name]}
               />
               <Legend 
                 layout="horizontal" 
