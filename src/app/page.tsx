@@ -139,7 +139,9 @@ export default function Home() {
 
         if (pointsEarned > 0) {
           // Update user with new points
-          const updatedUser = {...user, points: user.points + pointsEarned};
+          const newPoints =  user.points + pointsEarned;
+          const updatedUser = user;
+          updatedUser.points = newPoints;
           setUser(updatedUser);
 
           // Check if any new rewards should be unlocked
